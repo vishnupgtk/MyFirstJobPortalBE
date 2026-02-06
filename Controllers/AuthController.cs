@@ -10,9 +10,10 @@ namespace AuthSystemApi.Controllers
     {
         private readonly IAuthService _auth;
 
+        // Constructor
         public AuthController(IAuthService auth)
         {
-            _auth = auth;
+            _auth = auth; 
         }
 
         [HttpPost("register")]

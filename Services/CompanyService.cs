@@ -48,6 +48,11 @@ namespace AuthSystemApi.Services
             return MapCompany(reader);
         }
 
+        public CompanyProfileDto GetProfileByUserId(int userId)
+        {
+            return GetProfile(userId);
+        }
+
         private CompanyProfileDto MapCompany(SqlDataReader reader)
         {
             return new CompanyProfileDto
@@ -141,15 +146,22 @@ namespace AuthSystemApi.Services
         // ADMIN → REJECT
         public async Task RejectChange(int requestId, int adminId)
         {
-            using var con = _db.GetConnection();
-            using var cmd = new SqlCommand("sp_RejectCompanyChange", con);
-            cmd.CommandType = CommandType.StoredProcedure;
+            try
+            {
+                using var con = _db.GetConnection();
+                using var cmd = new SqlCommand("sp_RejectCompanyChange", con);
+                cmd.CommandType = CommandType.StoredProcedure;
 
-            cmd.Parameters.AddWithValue("@RequestId", requestId);
-            cmd.Parameters.AddWithValue("@AdminId", adminId);
+                cmd.Parameters.AddWithValue("@RequestId", requestId);
+                cmd.Parameters.AddWithValue("@AdminId", adminId);
 
-            await con.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
+                await con.OpenAsync();
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to reject company change request: {ex.Message}", ex);
+            }
         }
 
         // HISTORY (PER COMPANY)

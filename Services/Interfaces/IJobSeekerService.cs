@@ -11,5 +11,8 @@ namespace AuthSystemApi.Services.Interfaces
 
         Task<List<JobSeekerChangeHistoryDto>> GetAllHistory();
 
+        Task<string> UploadResume(int userId, IFormFile file);
+        Task DeleteResume(int userId);
     }
 }
+

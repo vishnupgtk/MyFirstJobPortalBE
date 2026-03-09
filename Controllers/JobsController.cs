@@ -49,6 +49,26 @@ namespace AuthSystemApi.Controllers
             return Ok(data);
         }
 
+        // EMPLOYER -> CLOSE JOB
+        [HttpPut("{jobId}/close")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> CloseJob(int jobId)
+        {
+            try
+            {
+                await _service.CloseJob(GetUserId(), jobId);
+                return Ok("Job closed successfully");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         // JOBSEEKER → VIEW MY APPLICATIONS
         [HttpGet("my-applications")]
         [Authorize(Roles = "JobSeeker")]
@@ -87,6 +107,15 @@ namespace AuthSystemApi.Controllers
             return Ok(data);
         }
 
+        // EMPLOYER → VIEW APPLICANTS WITH MATCHING SCORES (SORTED BY BEST MATCH)
+        [HttpGet("{jobId}/applicants-with-scores")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> GetApplicantsWithMatchingScore(int jobId)
+        {
+            var data = await _service.GetApplicantsWithMatchingScore(jobId);
+            return Ok(data);
+        }
+
         // EMPLOYER → UPDATE APPLICATION STATUS
         [HttpPut("{jobId}/applicants/{jobSeekerUserId}/status")]
         [Authorize(Roles = "Employer")]
@@ -101,6 +130,33 @@ namespace AuthSystemApi.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        // EMPLOYER → DASHBOARD METRICS
+        [HttpGet("dashboard/metrics")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> GetDashboardMetrics()
+        {
+            var data = await _service.GetDashboardMetrics(GetUserId());
+            return Ok(data);
+        }
+
+        // EMPLOYER → DASHBOARD JOBS OVERVIEW
+        [HttpGet("dashboard/jobs-overview")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> GetDashboardJobsOverview()
+        {
+            var data = await _service.GetDashboardJobsOverview(GetUserId());
+            return Ok(data);
+        }
+
+        // EMPLOYER → RECENT APPLICANTS
+        [HttpGet("dashboard/recent-applicants")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> GetRecentApplicants()
+        {
+            var data = await _service.GetRecentApplicants(GetUserId());
+            return Ok(data);
         }
     }
 }

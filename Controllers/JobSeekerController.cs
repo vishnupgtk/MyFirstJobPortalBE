@@ -12,10 +12,12 @@ namespace AuthSystemApi.Controllers
     public class JobSeekerController : ControllerBase
     {
         private readonly IJobSeekerService _service;
+        private readonly IWebHostEnvironment _env;
 
-        public JobSeekerController(IJobSeekerService service)
+        public JobSeekerController(IJobSeekerService service, IWebHostEnvironment env)
         {
             _service = service;
+            _env = env;
         }
 
         private int GetUserId()
@@ -47,6 +49,49 @@ namespace AuthSystemApi.Controllers
         {
             var data = await _service.GetHistory(GetUserId());
             return Ok(data);
+        }
+
+        // UPLOAD RESUME
+        [HttpPost("resume")]
+        public async Task<IActionResult> UploadResume(IFormFile file)
+        {
+            try
+            {
+                var fileName = await _service.UploadResume(GetUserId(), file);
+                return Ok(new { message = "Resume uploaded successfully", fileName });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // DELETE RESUME
+        [HttpDelete("resume")]
+        public async Task<IActionResult> DeleteResume()
+        {
+            await _service.DeleteResume(GetUserId());
+            return Ok(new { message = "Resume deleted successfully" });
+        }
+
+        // DOWNLOAD RESUME
+        [HttpGet("resume/download")]
+        public IActionResult DownloadResume()
+        {
+            var profile = _service.GetProfile(GetUserId());
+
+            if (string.IsNullOrEmpty(profile.ResumeFilePath))
+                return NotFound(new { message = "No resume found" });
+
+            var filePath = Path.Combine(_env.ContentRootPath, "Uploads", "Resumes", profile.ResumeFilePath);
+
+            if (!System.IO.File.Exists(filePath))
+                return NotFound(new { message = "Resume file not found" });
+
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+            var contentType = "application/octet-stream";
+
+            return File(fileBytes, contentType, profile.ResumeFileName);
         }
     }
 }

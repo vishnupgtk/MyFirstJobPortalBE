@@ -11,6 +11,7 @@ namespace AuthSystemApi.Services.Interfaces
         void CreateUser(RegisterRequest request);
         void UpdateUser(UpdateUserDto dto);
         void DeleteUser(int userId);
+        AdminStatisticsDto GetAdminStatistics();
     }
 }
 

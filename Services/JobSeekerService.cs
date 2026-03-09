@@ -9,10 +9,12 @@ namespace AuthSystemApi.Services
     public class JobSeekerService : IJobSeekerService
     {
         private readonly DbHelper _db;
+        private readonly IWebHostEnvironment _env;
 
-        public JobSeekerService(DbHelper db)
+        public JobSeekerService(DbHelper db, IWebHostEnvironment env)
         {
             _db = db;
+            _env = env;
         }
 
 
@@ -41,7 +43,10 @@ namespace AuthSystemApi.Services
                     College = "",
                     Skills = "",
                     FullName = "",
-                    Email = ""
+                    Email = "",
+                    ResumeFileName = null,
+                    ResumeFilePath = null,
+                    ResumeUploadedAt = null
                 };
             }
 
@@ -56,7 +61,10 @@ namespace AuthSystemApi.Services
                 College = reader["College"]?.ToString() ?? "",
                 Skills = reader["Skills"]?.ToString() ?? "",
                 FullName = $"{reader["FirstName"]} {reader["LastName"]}",
-                Email = reader["Email"]?.ToString() ?? ""
+                Email = reader["Email"]?.ToString() ?? "",
+                ResumeFileName = reader["ResumeFileName"] != DBNull.Value ? reader["ResumeFileName"].ToString() : null,
+                ResumeFilePath = reader["ResumeFilePath"] != DBNull.Value ? reader["ResumeFilePath"].ToString() : null,
+                ResumeUploadedAt = reader["ResumeUploadedAt"] != DBNull.Value ? Convert.ToDateTime(reader["ResumeUploadedAt"]) : null
             };
         }
 
@@ -78,6 +86,109 @@ namespace AuthSystemApi.Services
 
             con.Open();
             cmd.ExecuteNonQuery(); // safe because profile exists
+        }
+
+
+        // RESUME UPLOAD
+
+
+        public async Task<string> UploadResume(int userId, IFormFile file)
+        {
+            // Validate file
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file uploaded");
+
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+                throw new ArgumentException("Only PDF, DOC, and DOCX files are allowed");
+
+            if (file.Length > 5 * 1024 * 1024) // 5MB limit
+                throw new ArgumentException("File size must be less than 5MB");
+
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(_env.ContentRootPath, "Uploads", "Resumes");
+            if (!Directory.Exists(uploadsPath))
+                Directory.CreateDirectory(uploadsPath);
+
+            // Delete old resume if exists
+            await DeleteOldResume(userId);
+
+            // Generate unique filename
+            var fileName = $"{userId}_{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            // Save file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Update database
+            using var con = _db.GetConnection();
+            using var cmd = new SqlCommand(@"
+                UPDATE JobSeekerProfiles 
+                SET ResumeFileName = @FileName, 
+                    ResumeFilePath = @FilePath,
+                    ResumeUploadedAt = GETDATE()
+                WHERE UserId = @UserId", con);
+
+            cmd.Parameters.AddWithValue("@FileName", file.FileName);
+            cmd.Parameters.AddWithValue("@FilePath", fileName);
+            cmd.Parameters.AddWithValue("@UserId", userId);
+
+            await con.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+
+            return fileName;
+        }
+
+
+        // DELETE RESUME
+
+
+        public async Task DeleteResume(int userId)
+        {
+            await DeleteOldResume(userId);
+
+            // Clear database fields
+            using var con = _db.GetConnection();
+            using var cmd = new SqlCommand(@"
+                UPDATE JobSeekerProfiles 
+                SET ResumeFileName = NULL, 
+                    ResumeFilePath = NULL,
+                    ResumeUploadedAt = NULL
+                WHERE UserId = @UserId", con);
+
+            cmd.Parameters.AddWithValue("@UserId", userId);
+
+            await con.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private async Task DeleteOldResume(int userId)
+        {
+            // Get old resume path
+            using var con = _db.GetConnection();
+            using var cmd = new SqlCommand(@"
+                SELECT ResumeFilePath 
+                FROM JobSeekerProfiles 
+                WHERE UserId = @UserId", con);
+
+            cmd.Parameters.AddWithValue("@UserId", userId);
+
+            await con.OpenAsync();
+            var oldFilePath = await cmd.ExecuteScalarAsync() as string;
+
+            if (!string.IsNullOrEmpty(oldFilePath))
+            {
+                var fullPath = Path.Combine(_env.ContentRootPath, "Uploads", "Resumes", oldFilePath);
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                }
+            }
         }
 
 
@@ -124,6 +235,7 @@ namespace AuthSystemApi.Services
 
 
         // ADMIN → ALL JOBSEEKER HISTORY
+
         public async Task<List<JobSeekerChangeHistoryDto>> GetAllHistory()
         {
             var list = new List<JobSeekerChangeHistoryDto>();

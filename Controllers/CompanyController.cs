@@ -26,6 +26,14 @@ namespace AuthSystemApi.Controllers
             return Ok(_service.GetProfile(userId));
         }
 
+        // Admin -> view employer company profile by user id
+        [Authorize(Roles = "Admin")]
+        [HttpGet("user/{userId}")]
+        public IActionResult GetProfileByUserId(int userId)
+        {
+            return Ok(_service.GetProfileByUserId(userId));
+        }
+
         // Employer → request change
         [Authorize(Roles = "Employer")]
         [HttpPost("request-change")]
@@ -49,9 +57,16 @@ namespace AuthSystemApi.Controllers
         [HttpPost("approve")]
         public async Task<IActionResult> Approve(ApproveChangeDto dto)
         {
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            await _service.ApproveChange(dto.RequestId, adminId);
-            return Ok("Approved");
+            try
+            {
+                var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.ApproveChange(dto.RequestId, adminId);
+                return Ok("Approved");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Failed to approve request: {ex.Message}");
+            }
         }
 
         // Admin → reject
@@ -59,9 +74,16 @@ namespace AuthSystemApi.Controllers
         [HttpPost("reject")]
         public async Task<IActionResult> Reject(ApproveChangeDto dto)
         {
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            await _service.RejectChange(dto.RequestId, adminId);
-            return Ok("Rejected");
+            try
+            {
+                var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.RejectChange(dto.RequestId, adminId);
+                return Ok("Rejected");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Failed to reject request: {ex.Message}");
+            }
         }
 
         [Authorize(Roles = "Admin")]

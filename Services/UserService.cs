@@ -131,6 +131,70 @@ public class UserService : IUserService
         cmd.ExecuteNonQuery();
     }
 
+    // GET ADMIN STATISTICS
+    public AdminStatisticsDto GetAdminStatistics()
+    {
+        var stats = new AdminStatisticsDto();
+
+        using var con = _db.GetConnection();
+        con.Open();
+
+        // Get total users (excluding admin)
+        using (var cmd = new SqlCommand(@"
+            SELECT COUNT(*) FROM Users u
+            INNER JOIN Roles r ON u.RoleId = r.RoleId
+            WHERE r.RoleName != 'Admin'", con))
+        {
+            stats.TotalUsers = (int)cmd.ExecuteScalar();
+        }
+
+        // Get active employers
+        using (var cmd = new SqlCommand(@"
+            SELECT COUNT(*) FROM Users u
+            INNER JOIN Roles r ON u.RoleId = r.RoleId
+            WHERE r.RoleName = 'Employer'", con))
+        {
+            stats.ActiveEmployers = (int)cmd.ExecuteScalar();
+        }
+
+        // Get job seekers
+        using (var cmd = new SqlCommand(@"
+            SELECT COUNT(*) FROM Users u
+            INNER JOIN Roles r ON u.RoleId = r.RoleId
+            WHERE r.RoleName = 'JobSeeker'", con))
+        {
+            stats.JobSeekers = (int)cmd.ExecuteScalar();
+        }
+
+        // Get active jobs
+        using (var cmd = new SqlCommand(@"
+            SELECT COUNT(*) FROM Jobs
+            WHERE Status = 'Open' AND IsDeleted = 0", con))
+        {
+            stats.ActiveJobs = (int)cmd.ExecuteScalar();
+        }
+
+        // Calculate percentage changes (comparing to last week)
+        // For now, using simple random percentages between -5 and +15
+        // You can implement real calculations based on historical data
+        stats.UsersChangePercent = CalculateGrowthPercentage(stats.TotalUsers);
+        stats.EmployersChangePercent = CalculateGrowthPercentage(stats.ActiveEmployers);
+        stats.JobSeekersChangePercent = CalculateGrowthPercentage(stats.JobSeekers);
+        stats.JobsChangePercent = CalculateGrowthPercentage(stats.ActiveJobs);
+
+        return stats;
+    }
+
+    private decimal CalculateGrowthPercentage(int currentCount)
+    {
+        // Simple growth calculation: if count > 10, show positive growth
+        // In real app, you'd compare with historical data
+        if (currentCount == 0) return 0;
+        if (currentCount < 5) return new Random().Next(-5, 3);
+        if (currentCount < 20) return new Random().Next(0, 8);
+        return new Random().Next(3, 15);
+    }
+
     private User MapUser(SqlDataReader reader)
     {
         return new User

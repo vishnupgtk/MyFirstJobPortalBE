@@ -1,13 +1,13 @@
 using AuthSystemApi.Data;
-using AuthSystemApi.Services;
 using AuthSystemApi.Services.Interfaces;
+using AuthSystemApi.Services;
 using AuthSystemApi.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-var builder = WebApplication.CreateBuilder(args);  //DI container
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -51,7 +51,8 @@ builder.Services.AddCors(options =>
         policy =>
         {
             var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-            ?? new[] { "http://localhost:5173" };
+                ?? new[] { "http://localhost:5173" };
+
             policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
                   .AllowAnyMethod();
@@ -73,6 +74,11 @@ builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+// Resume parsing and matching services
+builder.Services.AddScoped<ResumeParsingService>();
+builder.Services.AddScoped<JobDescriptionParsingService>();
+builder.Services.AddScoped<MatchingService>();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -92,6 +98,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Add global exception handling middleware first
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())

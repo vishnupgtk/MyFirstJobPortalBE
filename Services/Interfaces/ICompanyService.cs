@@ -1,18 +1,22 @@
 ﻿using AuthSystemApi.DTOs;
 
-public interface ICompanyService
+namespace AuthSystemApi.Services.Interfaces
 {
-    CompanyProfileDto GetProfile(int userId);
+    public interface ICompanyService
+    {
+        CompanyProfileDto GetProfile(int userId);
+        CompanyProfileDto GetProfileByUserId(int userId);
 
-    Task RequestProfileChange(int companyId, string fieldName, string newValue, int userId);
+        Task RequestProfileChange(int companyId, string fieldName, string newValue, int userId);
 
-    Task<List<PendingChangeRequestDto>> GetPendingRequests();
+        Task<List<PendingChangeRequestDto>> GetPendingRequests();
 
-    Task ApproveChange(int requestId, int adminId);
+        Task ApproveChange(int requestId, int adminId);
 
-    Task RejectChange(int requestId, int adminId);
+        Task RejectChange(int requestId, int adminId);
 
-    Task<List<CompanyChangeHistoryDto>> GetCompanyHistory(int companyId);
+        Task<List<CompanyChangeHistoryDto>> GetCompanyHistory(int companyId);
 
-    Task<List<CompanyChangeHistoryDto>> GetAllHistory();   
+        Task<List<CompanyChangeHistoryDto>> GetAllHistory();
+    }
 }

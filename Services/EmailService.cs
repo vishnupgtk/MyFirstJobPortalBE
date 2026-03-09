@@ -29,7 +29,7 @@ namespace AuthSystemApi.Services
 
             await SendEmailAsync(notification.EmployerEmail, subject, body);
         }
-
+        
         private string PopulateJobApplicationTemplate(
             string template,
             JobApplicationNotificationDto dto)
@@ -61,7 +61,6 @@ namespace AuthSystemApi.Services
                 var smtpPassword = _configuration["EmailSettings:Password"] ?? "";
                 var fromEmail = _configuration["EmailSettings:FromEmail"] ?? smtpUsername;
                 var fromName = _configuration["EmailSettings:FromName"] ?? "Hiring System";
-
                 if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
                 {
                     _logger.LogInformation("EMAIL NOTIFICATION (Development Mode)");

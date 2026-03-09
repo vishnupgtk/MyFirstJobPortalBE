@@ -10,6 +10,9 @@
         public string Skills { get; set; } = "";
         public string FullName { get; set; } = "";
         public string Email { get; set; } = "";
+        public string? ResumeFileName { get; set; }
+        public string? ResumeFilePath { get; set; }
+        public DateTime? ResumeUploadedAt { get; set; }
     }
 
 }

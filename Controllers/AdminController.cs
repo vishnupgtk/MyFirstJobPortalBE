@@ -81,5 +81,12 @@ namespace AuthSystemApi.Controllers
             _service.DeleteUser(id);
             return Ok("User deleted successfully");
         }
+
+        [HttpGet("statistics")]
+        public IActionResult GetStatistics()
+        {
+            var stats = _service.GetAdminStatistics();
+            return Ok(stats);
+        }
     }
 }

@@ -9,8 +9,13 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpClient();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -62,7 +67,6 @@ builder.Services.AddCors(options =>
 // Database and core services
 builder.Services.AddSingleton<DbHelper>();
 builder.Services.AddScoped<JwtService>();
-builder.Services.AddHttpClient();
 
 // Business services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -81,7 +85,7 @@ builder.Services.AddScoped<ResumeParsingService>();
 builder.Services.AddScoped<JobDescriptionParsingService>();
 builder.Services.AddScoped<MatchingService>();
 builder.Services.AddScoped<ResumeFileProcessingService>();
-builder.Services.AddSingleton<AuthSystemApi.Services.Interfaces.IChatbotService, AuthSystemApi.Services.ChatbotService>();
+builder.Services.AddScoped<AuthSystemApi.Services.Interfaces.IChatbotService, AuthSystemApi.Services.ChatbotService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

@@ -486,7 +486,8 @@ namespace AuthSystemApi.Services
                     jsp.Summary,
                     jsp.Education,
                     jsp.College,
-                    jsp.ResumeFilePath
+                    jsp.ResumeFilePath,
+                    jsp.ResumeFileName
                 FROM JobApplications ja
                 INNER JOIN Users u ON ja.JobSeekerUserId = u.UserId
                 LEFT JOIN JobSeekerProfiles jsp ON u.UserId = jsp.UserId
@@ -510,18 +511,47 @@ namespace AuthSystemApi.Services
                     AppliedAt = (DateTime)rd["AppliedAt"]
                 };
 
-                // Build resume text from profile data
-                var resumeText = BuildResumeText(
-                    applicant.FullName,
-                    applicant.Email,
-                    rd["Summary"]?.ToString(),
-                    rd["Education"]?.ToString(),
-                    rd["College"]?.ToString(),
-                    applicant.Skills
-                );
+                // Try to get parsed resume data from file if available
+                ResumeParseResponseDto? parsedResume = null;
+                var resumeFilePath = rd["ResumeFilePath"]?.ToString();
 
-                // Parse resume and calculate match
-                var parsedResume = _resumeParsingService.ParseResume(resumeText);
+                if (!string.IsNullOrEmpty(resumeFilePath))
+                {
+                    try
+                    {
+                        // Try to read and parse the actual resume file
+                        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", resumeFilePath);
+                        if (File.Exists(fullPath))
+                        {
+                            var resumeText = await ReadResumeFileAsync(fullPath);
+                            if (!string.IsNullOrEmpty(resumeText))
+                            {
+                                parsedResume = _resumeParsingService.ParseResume(resumeText);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error but continue with fallback data
+                        Console.WriteLine($"Error reading resume file for user {applicant.UserId}: {ex.Message}");
+                    }
+                }
+
+                // Fallback to building resume from profile data if file parsing failed
+                if (parsedResume == null)
+                {
+                    var resumeText = BuildResumeText(
+                        applicant.FullName,
+                        applicant.Email,
+                        rd["Summary"]?.ToString(),
+                        rd["Education"]?.ToString(),
+                        rd["College"]?.ToString(),
+                        applicant.Skills
+                    );
+                    parsedResume = _resumeParsingService.ParseResume(resumeText);
+                }
+
+                // Calculate match score
                 var matchScore = _matchingService.CalculateMatchScore(parsedResume, parsedJobDescription);
 
                 applicant.MatchPercentage = matchScore.MatchPercentage;
@@ -532,6 +562,34 @@ namespace AuthSystemApi.Services
 
             // Sort by match percentage (highest first)
             return applicants.OrderByDescending(a => a.MatchPercentage ?? 0).ToList();
+        }
+
+        private async Task<string?> ReadResumeFileAsync(string filePath)
+        {
+            try
+            {
+                var extension = Path.GetExtension(filePath).ToLower();
+
+                switch (extension)
+                {
+                    case ".txt":
+                        return await File.ReadAllTextAsync(filePath);
+                    case ".pdf":
+                        // For PDF files, we'd need the file processing service
+                        // For now, return null to fall back to profile data
+                        return null;
+                    case ".docx":
+                        // For DOCX files, we'd need the file processing service
+                        // For now, return null to fall back to profile data
+                        return null;
+                    default:
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private async Task<string?> GetJobDescription(int jobId)

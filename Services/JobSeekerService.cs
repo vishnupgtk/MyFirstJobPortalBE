@@ -269,5 +269,37 @@ namespace AuthSystemApi.Services
 
             return list;
         }
+
+        public async Task UpdateProfileFromParsedResume(int userId, ResumeParseResponseDto parsedResume, string fileName, string filePath)
+        {
+            using var con = _db.GetConnection();
+            using var cmd = new SqlCommand(@"
+                UPDATE JobSeekerProfiles 
+                SET 
+                    Summary = COALESCE(@Summary, Summary),
+                    Skills = COALESCE(@Skills, Skills),
+                    Education = COALESCE(@Education, Education),
+                    ResumeFileName = @ResumeFileName,
+                    ResumeFilePath = @ResumeFilePath,
+                    ResumeUploadedAt = GETDATE()
+                WHERE UserId = @UserId
+                
+                IF @@ROWCOUNT = 0
+                BEGIN
+                    INSERT INTO JobSeekerProfiles (UserId, Summary, Skills, Education, ResumeFileName, ResumeFilePath, ResumeUploadedAt)
+                    VALUES (@UserId, @Summary, @Skills, @Education, @ResumeFileName, @ResumeFilePath, GETDATE())
+                END", con);
+
+            cmd.Parameters.AddWithValue("@UserId", userId);
+            cmd.Parameters.AddWithValue("@Summary", (object?)parsedResume.CurrentJobTitle ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Skills", parsedResume.Skills.Any() ? string.Join(", ", parsedResume.Skills) : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@Education", parsedResume.Education.Any() ?
+                string.Join("; ", parsedResume.Education.Select(e => $"{e.Degree} in {e.Field} ({e.Year})")) : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@ResumeFileName", fileName);
+            cmd.Parameters.AddWithValue("@ResumeFilePath", filePath);
+
+            await con.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 }

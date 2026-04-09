@@ -62,6 +62,7 @@ builder.Services.AddCors(options =>
 // Database and core services
 builder.Services.AddSingleton<DbHelper>();
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddHttpClient();
 
 // Business services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -71,6 +72,7 @@ builder.Services.AddScoped<IJobSeekerService, JobSeekerService>();
 builder.Services.AddScoped<IJobService, JobService>();
 
 // Email and notification services
+builder.Services.AddScoped<AuthSystemApi.Services.Interfaces.IEmailTemplateService, AuthSystemApi.Services.EmailTemplateService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
@@ -78,6 +80,8 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ResumeParsingService>();
 builder.Services.AddScoped<JobDescriptionParsingService>();
 builder.Services.AddScoped<MatchingService>();
+builder.Services.AddScoped<ResumeFileProcessingService>();
+builder.Services.AddSingleton<AuthSystemApi.Services.Interfaces.IChatbotService, AuthSystemApi.Services.ChatbotService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -90,7 +94,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured"))),
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -99,14 +103,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Add global exception handling middleware first
-app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Add global exception handling middleware after Swagger
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReact");

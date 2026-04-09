@@ -55,5 +55,31 @@ namespace AuthSystemApi.Controllers
             var result = _matchingService.CalculateMatchScore(request.Resume, request.JobDescription);
             return Ok(result);
         }
+
+        [HttpPost("upload-and-parse-resume")]
+        [Authorize]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadAndParseResume([FromForm] FileUploadRequestDto request)
+        {
+            try
+            {
+                var fileProcessingService = HttpContext.RequestServices.GetRequiredService<ResumeFileProcessingService>();
+                var file = request.File;
+
+                if (!fileProcessingService.IsValidResumeFile(file))
+                    return BadRequest("Invalid file. Please upload a PDF, DOCX, DOC, or TXT file (max 10MB)");
+
+                var parsedResume = await fileProcessingService.ProcessResumeFileAsync(file);
+                return Ok(parsedResume);
+            }
+            catch (NotSupportedException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error processing resume: {ex.Message}");
+            }
+        }
     }
 }

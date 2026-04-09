@@ -1,5 +1,6 @@
 ﻿using AuthSystemApi.DTOs;
 using AuthSystemApi.Services.Interfaces;
+using AuthSystemApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -53,16 +54,56 @@ namespace AuthSystemApi.Controllers
 
         // UPLOAD RESUME
         [HttpPost("resume")]
-        public async Task<IActionResult> UploadResume(IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadResume([FromForm] FileUploadRequestDto request)
         {
             try
             {
-                var fileName = await _service.UploadResume(GetUserId(), file);
+                var fileName = await _service.UploadResume(GetUserId(), request.File);
                 return Ok(new { message = "Resume uploaded successfully", fileName });
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // UPLOAD AND PARSE RESUME
+        [HttpPost("resume/upload-and-parse")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadAndParseResume([FromForm] FileUploadRequestDto request)
+        {
+            try
+            {
+                var fileProcessingService = HttpContext.RequestServices.GetRequiredService<ResumeFileProcessingService>();
+                var file = request.File;
+
+                if (!fileProcessingService.IsValidResumeFile(file))
+                    return BadRequest("Invalid file. Please upload a PDF, DOCX, DOC, or TXT file (max 10MB)");
+
+                // Save the file
+                var filePath = await fileProcessingService.SaveResumeFileAsync(file, GetUserId());
+
+                // Parse the resume
+                var parsedResume = await fileProcessingService.ProcessResumeFileAsync(file);
+
+                // Update the job seeker profile with parsed data
+                await _service.UpdateProfileFromParsedResume(GetUserId(), parsedResume, file.FileName, filePath);
+
+                return Ok(new
+                {
+                    message = "Resume uploaded and parsed successfully",
+                    fileName = file.FileName,
+                    parsedData = parsedResume
+                });
+            }
+            catch (NotSupportedException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error processing resume: {ex.Message}");
             }
         }
 

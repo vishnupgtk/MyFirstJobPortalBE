@@ -13,6 +13,7 @@ namespace AuthSystemApi.Services.Interfaces
 
         Task<string> UploadResume(int userId, IFormFile file);
         Task DeleteResume(int userId);
+        Task UpdateProfileFromParsedResume(int userId, ResumeParseResponseDto parsedResume, string fileName, string filePath);
     }
 }
 
